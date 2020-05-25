@@ -3,6 +3,14 @@ const readline = require('readline');
 const COLS = 7;
 const ROWS = 6;
 
+const X_AXIS_LEFT  = -1;
+const X_AXIS_SAME  =  0;
+const X_AXIS_RIGHT =  1;
+
+const Y_AXIS_UP    = -1;
+const Y_AXIS_SAME  =  0;
+const Y_AXIS_DOWN  =  1;
+
 class Board {
 
   /**
@@ -87,14 +95,14 @@ function place(board, col, player) {
   // return whether or not the player
   // has won
   return (
-    board.isLineOfFour(col, row, -1,  0) || // line to the left
-    board.isLineOfFour(col, row,  1,  0) || // line to the right
-    board.isLineOfFour(col, row,  0, -1) || // line up
-    board.isLineOfFour(col, row,  0,  1) || // line down
-    board.isLineOfFour(col, row, -1, -1) || // diagonal line going left, up
-    board.isLineOfFour(col, row, -1,  1) || // diagonal line going left, down
-    board.isLineOfFour(col, row,  1, -1) || // diagonal line going right, up
-    board.isLineOfFour(col, row,  1,  1)    // diagonal line going right, down
+    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_SAME) ||   // line to the left
+    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_SAME) ||  // line to the right
+    board.isLineOfFour(col, row, X_AXIS_SAME, Y_AXIS_UP) ||     // line up
+    board.isLineOfFour(col, row, X_AXIS_SAME, Y_AXIS_DOWN) ||   // line down
+    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_UP) ||     // diagonal line going left, up
+    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_DOWN) ||   // diagonal line going left, down
+    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_UP) ||    // diagonal line going right, up
+    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_DOWN)     // diagonal line going right, down
   );
 }
 
