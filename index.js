@@ -1,3 +1,5 @@
+const readline = require('readline');
+
 const COLS = 7;
 const ROWS = 6;
 
@@ -35,39 +37,29 @@ class Board {
     return firstEmptyRow;
   }
 
-  //   0 1 2 3 4 5 6
-  // 0  
-  // 1    
-  // 2 x     
-  // 3 o x       
-  // 4 o o x
-  // 5 o o o x
-
-  hasWon(col, row, directionX, directionY) {
+  isLineOfFour(col, row, directionX, directionY) {
     const player = this.board[col][row];
 
-    let won = true;
+    let lineOfFour = true;
     for (let steps = 0; steps < 4; steps++) {
       const nextCol = col + steps * directionX;
       const nextRow = row + steps * directionY;
-      console.log(player, nextCol, nextRow);
-      if (this.board[nextCol][nextRow] !== player) won = false;
+
+      const invalid = (
+        nextCol < 0 || nextCol >= COLS ||
+        nextRow < 0 || nextRow >= ROWS
+      );
+
+      if (invalid || this.board[nextCol][nextRow] !== player) lineOfFour = false;
     }
   
-    return won;
+    return lineOfFour;
   }
-
-  // findWinner() {
-  //   return -1;
-  // }
 
   print() {
     let printedStr = '';
 
     for (let row = 0; row < ROWS; row++) {
-      printedStr += row;
-      printedStr += ' ';
-
       for (let col = 0; col < COLS; col++) {
         const value = this.board[col][row];
         printedStr += ' ';
@@ -79,61 +71,77 @@ class Board {
   }
 }
 
-const board = new Board();
-
-board.place(0, 0);
-board.place(0, 0);
-board.place(0, 0);
-board.place(0, 1);
-
-board.place(1, 0);
-board.place(1, 0);
-board.place(1, 1);
-
-board.place(2, 0);
-board.place(2, 1);
-
-console.log(place(board, 3, 1));
-
-board.print();
-
+/**
+ * Places a piece on the board and returns whether
+ * the move was the winning move.
+ */
 function place(board, col, player) {
+  // place a piece in the given column
+  // the row the piece was placed in will be returned
   const row = board.place(col, player);
 
+  // piece was not placed
   if (row === -1)
     return false;
 
+  // return whether or not the player
+  // has won
   return (
-    board.hasWon(col, row, -1,  0) ||
-    board.hasWon(col, row,  1,  0) ||
-    board.hasWon(col, row,  0, -1) ||
-    board.hasWon(col, row,  0,  1) ||
-    board.hasWon(col, row, -1, -1) ||
-    board.hasWon(col, row, -1,  1) ||
-    board.hasWon(col, row,  1, -1) ||
-    board.hasWon(col, row,  1,  1)
+    board.isLineOfFour(col, row, -1,  0) || // line to the left
+    board.isLineOfFour(col, row,  1,  0) || // line to the right
+    board.isLineOfFour(col, row,  0, -1) || // line up
+    board.isLineOfFour(col, row,  0,  1) || // line down
+    board.isLineOfFour(col, row, -1, -1) || // diagonal line going left, up
+    board.isLineOfFour(col, row, -1,  1) || // diagonal line going left, down
+    board.isLineOfFour(col, row,  1, -1) || // diagonal line going right, up
+    board.isLineOfFour(col, row,  1,  1)    // diagonal line going right, down
   );
 }
 
-// function tick() {
-//   const winner = board.findWinner();
-//   if (winner !== -1) {
-//     console.log((winner ? 'x' : 'o') + ' has won');
-//     shutdown();
-//   }
-// }
+let col = 0;
+let player = 0;
+let gameOver = false;
 
-// function draw() {
-//   console.clear();
-//   board.print();
-// }
+const board = new Board();
+console.log('Press any key to start');
 
-// const interval = setInterval(() => {
-//   tick();
-//   draw();
-// }, 50);
+// prepare terminal for keypress-based user input
+readline.emitKeypressEvents(process.stdin);
+process.stdin.setRawMode(true);
+process.stdin.on('keypress', (str, key) => {
+  // let the user exit the program using
+  // ctrl-c or ctrl-d
+  if ((key.name === 'c' && key.ctrl) || (key.name === 'd' && key.ctrl))
+    process.exit(0);
 
-// function shutdown() {
-//   clearInterval(interval);
-//   console.log('Thanks for playing');
-// }
+  if (!gameOver) {
+    if (key.name === 'left' && col > 0) col--;
+    if (key.name === 'right' && col < COLS - 1) col++;
+  
+    let winningMove;
+    if (key.name === 'space') {
+      winningMove = place(board, col, player);
+      player = player ? 0 : 1; // alternate between players
+    }
+  
+    if (winningMove) {
+      console.clear();
+      console.log('Player ' + player + ' won the game!');
+      gameOver = true;
+    } else {
+      redraw();
+    }
+  }
+});
+
+function redraw() {
+  console.clear();
+  console.log('col', col);
+  console.log('ply', player);
+  console.log();
+
+  const cursor = 'v'.padStart(2 + col * 2, ' ');
+  console.log(cursor);
+
+  board.print();
+}
