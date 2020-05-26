@@ -44,6 +44,8 @@ class Board {
   }
 
   place(col, player) {
+    if (this.animation) return -1; // ignore, we're already placing a piece
+
     let firstEmptyRow = -1;
     for (let row = ROWS - 1; row >= 0; row--) {
       if (this.board[col][row] === -1) {
