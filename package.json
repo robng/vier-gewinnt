@@ -3,5 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "author": "robng",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.0.0"
+  }
 }

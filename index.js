@@ -1,15 +1,15 @@
 const readline = require('readline');
+const chalk = require('chalk');
+
+const DEBUG = true;
 
 const COLS = 7;
 const ROWS = 6;
 
-const X_AXIS_LEFT  = -1;
-const X_AXIS_SAME  =  0;
-const X_AXIS_RIGHT =  1;
+const PLAYER_ICON = '⬤';
+const CURSOR_ICON = 'v';
 
-const Y_AXIS_UP    = -1;
-const Y_AXIS_SAME  =  0;
-const Y_AXIS_DOWN  =  1;
+let debugmsg;
 
 class Board {
 
@@ -19,13 +19,28 @@ class Board {
    */
   constructor() {
     this.board = [];
+    this.cursor = 0;
+    this.animations = [];
 
     for (let col = 0; col < COLS; col++) {
       this.board[col] = [];
-      
+
       for (let row = 0; row < ROWS; row++) {
         this.board[col][row] = -1;
       }
+    }
+  }
+
+  moveCursor(amount) {
+    if (amount < 0) {
+      this.cursor = (this.cursor + amount) >= 0
+        ? this.cursor + amount
+        : 0;
+    }
+    if (amount > 0) {
+      this.cursor = (this.cursor + amount) < COLS
+        ? this.cursor + amount
+        : COLS - 1;
     }
   }
 
@@ -39,7 +54,13 @@ class Board {
     }
 
     if (firstEmptyRow > -1) {
-      this.board[col][firstEmptyRow] = player;
+      this.animation = new Animation(this, col, firstEmptyRow, player);
+      this.animation.done(() => {
+        this.board[col][firstEmptyRow] = player;
+        this.animation = null;
+      });
+
+      this.animation.run();
     }
 
     return firstEmptyRow;
@@ -48,8 +69,10 @@ class Board {
   isLineOfFour(col, row, directionX, directionY) {
     const player = this.board[col][row];
 
-    let lineOfFour = true;
-    for (let steps = 0; steps < 4; steps++) {
+    let consecutive = 0;
+    let lineOfFour = false;
+
+    for (let steps = -4; steps < 4; steps++) {
       const nextCol = col + steps * directionX;
       const nextRow = row + steps * directionY;
 
@@ -58,98 +81,152 @@ class Board {
         nextRow < 0 || nextRow >= ROWS
       );
 
-      if (invalid || this.board[nextCol][nextRow] !== player) lineOfFour = false;
+      if (invalid || this.board[nextCol][nextRow] !== player) {
+        consecutive = 0;
+      } else {
+        if (++consecutive === 4) {
+          lineOfFour = true;
+        }
+      }
     }
   
     return lineOfFour;
   }
 
-  print() {
+  printCursor() {
+    console.log(CURSOR_ICON.padStart(2 + this.cursor * 2, ' '));
+  }
+
+  printBoard() {
     let printedStr = '';
 
     for (let row = 0; row < ROWS; row++) {
       for (let col = 0; col < COLS; col++) {
         const value = this.board[col][row];
+        // printedStr += chalk.bgBlue(' ');
         printedStr += ' ';
-        printedStr += (value === -1 ? ' ' : (value ? 'x' : 'o'));
+
+        if (value === -1) {
+          printedStr += ' ';
+          // printedStr += chalk.bgBlue(chalk.white(PLAYER_ICON))
+        } else {
+          printedStr += value
+            ? chalk.yellow(PLAYER_ICON) // chalk.bgBlue(chalk.yellow(PLAYER_ICON))
+            : chalk.red(PLAYER_ICON) // chalk.bgBlue(chalk.red(PLAYER_ICON))
+        }
       }
+      // printedStr += chalk.bgBlue('  \n');
       printedStr += '\n';
     }
     console.log(printedStr);
   }
+
+  redraw() {
+    console.clear();
+    if (DEBUG) {
+      console.log('player', player);
+      console.log('cursor', board.cursor);
+      console.log('debug:', debugmsg || 'none')
+      console.log();
+    }
+    this.printCursor();
+    this.printBoard();
+  }
 }
 
-/**
- * Places a piece on the board and returns whether
- * the move was the winning move.
- */
-function place(board, col, player) {
-  // place a piece in the given column
-  // the row the piece was placed in will be returned
-  const row = board.place(col, player);
+class Animation {
+  constructor(board, col, row, player) {
+    this.board = board;
+    this.col = col;
+    this.row = row;
+    this.player = player;
+    this.callbacks = [];
+  }
 
-  // piece was not placed
-  if (row === -1)
-    return false;
+  done(cb) {
+    this.callbacks.push(cb);
+  }
 
-  // return whether or not the player
-  // has won
-  return (
-    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_SAME) ||   // line to the left
-    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_SAME) ||  // line to the right
-    board.isLineOfFour(col, row, X_AXIS_SAME, Y_AXIS_UP) ||     // line up
-    board.isLineOfFour(col, row, X_AXIS_SAME, Y_AXIS_DOWN) ||   // line down
-    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_UP) ||     // diagonal line going left, up
-    board.isLineOfFour(col, row, X_AXIS_LEFT, Y_AXIS_DOWN) ||   // diagonal line going left, down
-    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_UP) ||    // diagonal line going right, up
-    board.isLineOfFour(col, row, X_AXIS_RIGHT, Y_AXIS_DOWN)     // diagonal line going right, down
-  );
+  run() {
+    for (let step = 0; step <= this.row; step++) {
+      setTimeout(() => {
+        this.board.board[this.col][step] = player;
+        this.board.board[this.col][step-1] = -1;
+        this.board.redraw();
+
+        if (step === this.row) {
+          for (const cb of this.callbacks) cb(this);
+        }
+      }, step * 100);
+    }
+  }
 }
 
-let col = 0;
-let player = 0;
-let gameOver = false;
+class Player {
+  constructor(id, board) {
+    this.id = id;
+    this.board = board;
+  }
+
+  /**
+   * Places a piece on the board and returns whether
+   * the move was the winning move.
+   */
+  place() {
+    // place a piece in the given column
+    // the row the piece was placed in will be returned
+    const col = this.board.cursor;
+    const row = this.board.place(col, this.id);
+
+    // piece was not placed
+    if (row === -1)
+      return null;
+
+    return { col, row };
+  }
+}
 
 const board = new Board();
-console.log('Press any key to start');
+const players = [
+  new Player(0, board),
+  new Player(1, board)
+];
+
+let player = 0;
+console.log('Press any key to start'); 
 
 // prepare terminal for keypress-based user input
 readline.emitKeypressEvents(process.stdin);
 process.stdin.setRawMode(true);
-process.stdin.on('keypress', (str, key) => {
+process.stdin.on('keypress', async (str, key) => {
   // let the user exit the program using
   // ctrl-c or ctrl-d
   if ((key.name === 'c' && key.ctrl) || (key.name === 'd' && key.ctrl))
     process.exit(0);
 
-  if (!gameOver) {
-    if (key.name === 'left' && col > 0) col--;
-    if (key.name === 'right' && col < COLS - 1) col++;
+  if (key.name === 'left') board.moveCursor(-1);
+  if (key.name === 'right') board.moveCursor(1);
+
+  if (key.name === 'space') {
+    const pos = await players[player].place();
+    if (pos && board.animation) {
+      const { col, row } = pos;
+      board.animation.done(() => {
+        const winningMove = (
+          board.isLineOfFour(col, row,  1, 0) || // check left and right
+          board.isLineOfFour(col, row,  0, 1) || // check up and down
+          board.isLineOfFour(col, row,  1, 1) || // check diagonally, left to right (up and down)
+          board.isLineOfFour(col, row, -1, 1)    // check diagonally, right to left (up and down)
+        );
   
-    let winningMove;
-    if (key.name === 'space') {
-      winningMove = place(board, col, player);
-      player = player ? 0 : 1; // alternate between players
-    }
-  
-    if (winningMove) {
-      console.clear();
-      console.log('Player ' + player + ' won the game!');
-      gameOver = true;
-    } else {
-      redraw();
+        player = player ? 0 : 1; // alternate between players
+      
+        if (winningMove) {
+          process.exit();
+        }
+      });
     }
   }
+
+  board.redraw();
 });
-
-function redraw() {
-  console.clear();
-  console.log('col', col);
-  console.log('ply', player);
-  console.log();
-
-  const cursor = 'v'.padStart(2 + col * 2, ' ');
-  console.log(cursor);
-
-  board.print();
-}
