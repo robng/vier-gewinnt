@@ -5,6 +5,7 @@
   "author": "robng",
   "license": "MIT",
   "dependencies": {
-    "chalk": "^4.0.0"
+    "chalk": "^4.0.0",
+    "terminal-kit": "^1.35.2"
   }
 }
