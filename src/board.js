@@ -30,6 +30,15 @@ class Board {
     }
   }
 
+  setCursor(col) {
+    if (col >= 0 && col < COLS) {
+      this.cursor = col;
+    } else {
+      if (col < 0) this.cursor = 0;
+      if (col >= COLS) this.cursor = COLS - 1;
+    }
+  }
+
   moveCursor(amount) {
     if (amount < 0) {
       this.cursor = (this.cursor + amount) >= 0
@@ -46,6 +55,21 @@ class Board {
   place(col, player) {
     if (this.animation) return -1; // ignore, we're already placing a piece
 
+    const row = this.getRow(col);
+    if (row > -1) {
+      this.animation = new Animation(this, col, row, player);
+      this.animation.done(() => {
+        this.board[col][row] = player;
+        this.animation = null;
+      });
+
+      this.animation.run();
+    }
+
+    return row;
+  }
+
+  getRow(col) {
     let firstEmptyRow = -1;
     for (let row = ROWS - 1; row >= 0; row--) {
       if (this.board[col][row] === -1) {
@@ -53,17 +77,6 @@ class Board {
         break;
       }
     }
-
-    if (firstEmptyRow > -1) {
-      this.animation = new Animation(this, col, firstEmptyRow, player);
-      this.animation.done(() => {
-        this.board[col][firstEmptyRow] = player;
-        this.animation = null;
-      });
-
-      this.animation.run();
-    }
-
     return firstEmptyRow;
   }
 
@@ -126,8 +139,10 @@ class Board {
     console.clear();
     if (DEBUG) {
       console.log('cursor', this.cursor);
-      console.log('player', global.debug.player);
-      console.log('debug:', global.debug.msg || 'none')
+
+      for (const key of Object.keys(global.debug))
+        console.log(key, global.debug[key]);
+
       console.log();
     }
     this.printCursor();

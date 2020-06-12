@@ -1,4 +1,4 @@
-const ANIMATION_SPEED = 300;
+const ANIMATION_SPEED = 50;
 
 class Animation {
   constructor(board, col, row, player) {
